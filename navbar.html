@@ -66,7 +66,28 @@
   // เรียกใช้หลังสลับ View
   const originalSwitchViewNavbar = window.switchView;
   window.switchView = function(viewName) {
-    originalSwitchViewNavbar(viewName);
+    if(typeof originalSwitchViewNavbar === 'function') {
+      originalSwitchViewNavbar(viewName);
+    }
     updateActiveLink(viewName);
+  }
+
+  // 🚀 เพิ่มใหม่: ฟังก์ชันสำหรับออกจากระบบให้ทำงานสอดคล้องกับ LINE LIFF
+  function logout() {
+    if (confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
+      // เคลียร์ข้อมูลผู้ใช้งาน
+      if (typeof currentUser !== 'undefined') {
+        currentUser = null; 
+      }
+      
+      // กรณีเปิดผ่าน LINE (LIFF) ให้เตะออกจากแอปและปิดหน้าต่าง
+      if (typeof liff !== 'undefined' && liff.isLoggedIn()) {
+        liff.logout();
+        liff.closeWindow();
+      } else {
+        // กรณีเปิดผ่านเว็บเบราว์เซอร์ปกติ ให้โหลดหน้าเว็บใหม่
+        location.reload();
+      }
+    }
   }
 </script>
