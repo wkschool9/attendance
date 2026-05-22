@@ -9,8 +9,8 @@
       <div class="col-6">
         <label class="small text-muted fw-bold mb-1"><i class="fa-solid fa-users me-1 text-primary"></i>ชั้นเรียน</label>
         <select class="form-select rounded-pill bg-light border-0 fw-bold shadow-sm" id="att-room-select" onchange="loadAttendanceView()">
-          <option value="อนุบาล 2">อนุบาล 2</option>
-          <option value="อนุบาล 3">อนุบาล 3</option>
+          <option value="อ.2">อนุบาล 2</option>
+          <option value="อ.3">อนุบาล 3</option>
           <option value="ป.1">ประถมศึกษาปีที่ 1</option> 
           <option value="ป.2">ประถมศึกษาปีที่ 2</option> 
           <option value="ป.3">ประถมศึกษาปีที่ 3</option> 
@@ -85,7 +85,12 @@
     const container = document.getElementById('attendance-mobile-list');
     container.innerHTML = '<div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>กำลังประมวลรายชื่อนักเรียน...</div>';
     
-    google.script.run.withSuccessHandler(function(students) {
+    // 🟢 จุดที่ 1: เปลี่ยนมาใช้ API ดึงรายชื่อนักเรียน
+    callGasAPI('getStudents', { 
+      room: currentRoom, 
+      role: role, 
+      classAssigned: classAssigned 
+    }).then(function(students) {
       container.innerHTML = '';
       if(students.length === 0) {
         container.innerHTML = '<div class="text-center text-danger py-5"><i class="fa-solid fa-triangle-exclamation me-1"></i>ไม่พบรายชื่อในระบบห้องเรียนนี้</div>';
@@ -112,7 +117,9 @@
           </div>
         `;
       });
-    }).getStudents(currentRoom, role, classAssigned);
+    }).catch(function(error) {
+      container.innerHTML = '<div class="text-center text-danger py-5">❌ เกิดข้อผิดพลาดในการดึงข้อมูล</div>';
+    });
   }
 
   function bulkSelectStatus(statusValue) {
@@ -130,7 +137,12 @@
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึกข้อมูล...';
     btn.disabled = true;
 
-    google.script.run.withSuccessHandler(function(students) {
+    // 🟢 จุดที่ 2: เปลี่ยนมาใช้ API เพื่อบันทึกข้อมูล (ดึงชื่อนักเรียนมาเช็คสถานะ แล้วส่งบันทึก)
+    callGasAPI('getStudents', { 
+      room: room, 
+      role: role, 
+      classAssigned: classAssigned 
+    }).then(function(students) {
       let dataToSave = [];
       students.forEach(std => {
         const selectedRadio = document.querySelector(`input[name="status-${std.id}"]:checked`);
@@ -139,16 +151,29 @@
         }
       });
       
-      google.script.run.withSuccessHandler(function() {
-        alert('🎉 ระบบบันทึกข้อมูลการลงเวลาเรียนประจำวันสำเร็จเรียบร้อยแล้ว!');
-        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i>บันทึกข้อมูลวันนี้';
-        btn.disabled = false;
-        
-        // 🚀 หากถูกเรียกเปิดใช้งานในโปรแกรม LINE App (LIFF) จะปิดหน้าจอตนเองอัตโนมัติทันที
-        if (typeof liff !== 'undefined' && liff.isInClient()) {
-          liff.closeWindow();
-        }
-      }).saveAttendance(dataToSave, selectedDate);
-    }).getStudents(room, role, classAssigned);
+      // เมื่อจัดเตรียมก้อนข้อมูลเสร็จ ให้ยิง API ไปบันทึก
+      return callGasAPI('saveAttendance', {
+        records: JSON.stringify(dataToSave), // แปลงเป็นก้อน JSON เหมือนระบบเดิม
+        date: selectedDate,
+        room: room,
+        updater: currentUser ? currentUser.name : 'Unknown'
+      });
+
+    }).then(function() {
+      // เมื่อบันทึกสำเร็จ
+      alert('🎉 ระบบบันทึกข้อมูลการลงเวลาเรียนประจำวันสำเร็จเรียบร้อยแล้ว!');
+      btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i>บันทึกข้อมูลวันนี้';
+      btn.disabled = false;
+      
+      // 🚀 ปิดหน้าต่าง LINE อัตโนมัติ
+      if (typeof liff !== 'undefined' && liff.isInClient()) {
+        liff.closeWindow();
+      }
+    }).catch(function(error) {
+      // หากเกิดข้อผิดพลาด
+      alert('❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + error.message);
+      btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i>บันทึกข้อมูลวันนี้';
+      btn.disabled = false;
+    });
   }
 </script>
