@@ -1,87 +1,37 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>ระบบธุรการชั้นเรียน</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-  
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-  <style>
-    body { font-family: 'Sarabun', sans-serif; background-color: #f8f9fa; user-select: none; }
-    .hidden { display: none !important; }
-    .nav-mobile-btn { background: none; border: none; padding: 6px 0; width: 24%; text-align: center; color: #6c757d; transition: 0.2s; }
-    .nav-mobile-btn.active { color: #0d6efd !important; font-weight: bold; }
-    .nav-text { font-size: 0.75rem; display: block; margin-top: 2px; }
-    .full-screen-loader { position: fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  </style>
-</head>
-<body>
-
-  <div id="system-loader" class="full-screen-loader">
-    <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-    <h5 class="fw-bold text-dark" id="loader-text">กำลังโหลดระบบ...</h5>
-    <p class="text-muted small">โรงเรียนวัดคุยขวาง</p>
-  </div>
-
-  <div id="view-register" class="container py-5 hidden">
-    <div class="row justify-content-center">
-      <div class="col-12 col-md-5">
-        <div class="card border-0 shadow-lg rounded-4 p-4 bg-white text-center">
-          <div class="py-3">
-            <i class="fa-solid fa-graduation-cap text-primary display-2 mb-3" id="login-icon"></i>
-            <h4 class="fw-bold text-dark" id="login-title">เข้าสู่ระบบ</h4>
-            <p class="text-muted small" id="login-subtitle">กรุณาระบุชื่อผู้ใช้งานและรหัสผ่านเพื่อเข้าใช้งาน</p>
-          </div>
-          <div class="text-start mt-2">
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-muted">ชื่อผู้ใช้งาน (Username)</label>
-              <input type="text" id="reg-username" class="form-control rounded-pill px-3 py-2 bg-light border-0" placeholder="ระบุชื่อผู้ใช้">
-            </div>
-            <div class="mb-4">
-              <label class="form-label small fw-bold text-muted">รหัสผ่าน (Password)</label>
-              <input type="password" id="reg-password" class="form-control rounded-pill px-3 py-2 bg-light border-0" placeholder="ระบุรหัสผ่าน">
-            </div>
-            <button class="btn btn-primary w-100 py-2.5 rounded-pill fw-bold shadow border-0" onclick="submitLoginOrRegister()">
-              <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>ตกลง
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="main-app-container" class="container py-2 hidden" style="margin-bottom: 85px;">
-    <div id="view-dashboard"><?!= include('Dashboard'); ?></div>
-    <div id="view-attendance" class="hidden"><?!= include('Attendance'); ?></div>
-    <div id="view-students" class="hidden"><?!= include('Students'); ?></div>
-    <div id="view-users" class="hidden"><?!= include('Users'); ?></div>
-  </div>
-
-  <div id="bottom-nav-bar" class="fixed-bottom bg-white border-top shadow-lg d-flex justify-content-around align-items-center py-1 hidden" style="height: 65px; z-index: 1020;">
-    <button class="btn nav-mobile-btn active" onclick="switchView('dashboard', this)">
-      <i class="fa-solid fa-chart-pie fs-4"></i><span class="nav-text">หน้าหลัก</span>
-    </button>
-    <button class="btn nav-mobile-btn" onclick="switchView('attendance', this)">
-      <i class="fa-solid fa-calendar-check fs-4"></i><span class="nav-text">เช็คชื่อ</span>
-    </button>
-    <button class="btn nav-mobile-btn" id="btn-nav-students" onclick="switchView('students', this)">
-      <i class="fa-solid fa-id-card fs-4"></i><span class="nav-text">นักเรียน</span>
-    </button>
-    <button class="btn nav-mobile-btn" id="btn-nav-users" onclick="switchView('users', this)">
-      <i class="fa-solid fa-user-gear fs-4"></i><span class="nav-text">ตั้งค่าครู</span>
-    </button>
-  </div>
-
-  <script>
+<script>
     let currentUser = null;
     let globLineUserId = null;
     let isRunningInLine = false; 
 
-    // ⚠️ ตรงนี้สำคัญมาก อย่าลืมใส่ LIFF ID ของโรงเรียน ⚠️
+    // ⚠️ ตรงนี้สำคัญมาก 1: ใส่ LIFF ID ของโรงเรียน
     const MY_LIFF_ID = "2010123063-r79O7fpX"; 
+
+    // ⚠️ ตรงนี้สำคัญมาก 2: เอา URL Web App ของ Google Apps Script ที่ Deploy ใหม่มาวางที่นี่
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz74qO-OETBnKSeMKwgBaZMRTBlIJH1qWkt9dvpe0nWq6ZDdSfqa2Qam3sSMkkb8MDVQQ/exec";
+
+    // ==========================================
+    // ฟังก์ชันตัวกลางสำหรับยิง API ไปหา GAS
+    // ==========================================
+    async function callGasAPI(actionName, dataObj = {}) {
+      dataObj.action = actionName; 
+      try {
+        const response = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(dataObj)
+        });
+        
+        const result = await response.json();
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        return result; 
+      } catch (error) {
+        console.error("API Error:", error);
+        throw error;
+      }
+    }
+    // ==========================================
 
     document.addEventListener("DOMContentLoaded", function() {
       if (MY_LIFF_ID === "2010123063-r79O7fpX" || MY_LIFF_ID === "") {
@@ -109,7 +59,6 @@
           }
         })
         .catch((err) => {
-          // โชว์แจ้งเตือนทันทีว่าพังเพราะอะไร!
           alert("❌ ไม่สามารถเชื่อมต่อ LINE LIFF ได้! สาเหตุ:\n" + err);
           showNormalLogin();
         });
@@ -122,10 +71,10 @@
       document.getElementById('login-subtitle').innerText = "กรุณาระบุชื่อผู้ใช้งานและรหัสผ่านเพื่อเข้าใช้งาน";
     }
 
-    // เช็คประวัติการผูก LINE ID
+    // 1️⃣ เปลี่ยนแปลง: เช็คประวัติการผูก LINE ID ผ่าน API
     function verifyUserWithLine(lineUserId) {
-      google.script.run
-        .withSuccessHandler(function(response) {
+      callGasAPI('checkLineLogin', { lineUserId: lineUserId })
+        .then(function(response) {
           document.getElementById('system-loader').classList.add('hidden');
           
           if(response.success && response.isLinked) {
@@ -141,8 +90,7 @@
             document.querySelector('#view-register button').innerHTML = '<i class="fa-solid fa-circle-check me-2"></i>ยืนยันผูกบัญชี LINE';
           }
         })
-        .withFailureHandler(function(error) {
-          // ดักจับ Error ไม่ให้โหลดค้าง
+        .catch(function(error) {
           document.getElementById('system-loader').innerHTML = `
             <div class="card border-danger shadow-sm p-4 m-3 text-center" style="max-width: 400px;">
               <h5 class="text-danger fw-bold mb-3">❌ เกิดข้อผิดพลาด!</h5>
@@ -150,11 +98,10 @@
               <button class="btn btn-outline-secondary rounded-pill w-100" onclick="showNormalLogin()">เข้าสู่ระบบด้วยรหัสผ่านปกติ</button>
             </div>
           `;
-        })
-        .checkLineLogin(lineUserId);
+        });
     }
 
-    // สั่ง Login หรือ ลงทะเบียน
+    // 2️⃣ เปลี่ยนแปลง: สั่ง Login หรือ ลงทะเบียนผูกบัญชี ผ่าน API
     function submitLoginOrRegister() {
       let user = document.getElementById('reg-username').value.trim();
       let pass = document.getElementById('reg-password').value.trim();
@@ -169,30 +116,41 @@
       document.getElementById('loader-text').innerText = "กำลังตรวจสอบข้อมูล...";
       
       if (isRunningInLine && globLineUserId) {
-        google.script.run.withSuccessHandler(function(response) {
-          if(response.success) {
-            alert("✨ ผูกบัญชี LINE กับระบบเสร็จสมบูรณ์แล้ว!\nหลังจากนี้เข้าเช็คชื่อได้ทันทีโดยไม่ต้องพิมพ์รหัสซ้ำครับ");
-            currentUser = response;
-            setupUserPermissions();
-            openMainApp();
-          } else {
-            alert("❌ " + response.message);
-            document.getElementById('system-loader').classList.add('hidden');
-            document.getElementById('view-register').classList.remove('hidden');
-          }
-        }).registerLineAccount(user, pass, globLineUserId);
+        // ยิง API ผูกบัญชี LINE
+        callGasAPI('linkLineAccount', { username: user, password: pass, lineUserId: globLineUserId })
+          .then(function(response) {
+            if(response.success) {
+              alert("✨ ผูกบัญชี LINE กับระบบเสร็จสมบูรณ์แล้ว!\nหลังจากนี้เข้าเช็คชื่อได้ทันทีโดยไม่ต้องพิมพ์รหัสซ้ำครับ");
+              currentUser = response;
+              setupUserPermissions();
+              openMainApp();
+            } else {
+              alert("❌ " + response.message);
+              document.getElementById('system-loader').classList.add('hidden');
+              document.getElementById('view-register').classList.remove('hidden');
+            }
+          }).catch(function(error) {
+             alert("❌ เกิดข้อผิดพลาด: " + error.message);
+             showNormalLogin();
+          });
+
       } else {
-        google.script.run.withSuccessHandler(function(response) {
-          if(response.success) {
-            currentUser = response;
-            setupUserPermissions();
-            openMainApp();
-          } else {
-            alert("❌ " + response.message);
-            document.getElementById('system-loader').classList.add('hidden');
-            document.getElementById('view-register').classList.remove('hidden');
-          }
-        }).checkLogin(user, pass);
+        // ยิง API ล็อกอินปกติด้วยรหัสผ่าน
+        callGasAPI('checkLogin', { username: user, password: pass })
+          .then(function(response) {
+            if(response.success) {
+              currentUser = response;
+              setupUserPermissions();
+              openMainApp();
+            } else {
+              alert("❌ " + response.message);
+              document.getElementById('system-loader').classList.add('hidden');
+              document.getElementById('view-register').classList.remove('hidden');
+            }
+          }).catch(function(error) {
+             alert("❌ เกิดข้อผิดพลาด: " + error.message);
+             showNormalLogin();
+          });
       }
     }
 
@@ -200,7 +158,10 @@
       document.getElementById('system-loader').classList.add('hidden');
       document.getElementById('main-app-container').classList.remove('hidden');
       document.getElementById('bottom-nav-bar').classList.remove('hidden');
-      document.getElementById('footer-credit').classList.remove('hidden');
+      // หากโค้ดเดิมมี footer-credit ให้แก้ลบ .classList หรือใส่บรรทัดล่างนี้ไว้ได้เลย
+      const footerElement = document.getElementById('footer-credit');
+      if (footerElement) footerElement.classList.remove('hidden');
+      
       switchView('dashboard', document.querySelector('.nav-mobile-btn'));
     }
 
@@ -225,11 +186,10 @@
       document.querySelectorAll('.nav-mobile-btn').forEach(btn => btn.classList.remove('active'));
       if(btnElement) btnElement.classList.add('active');
 
-      if(viewId === 'dashboard') loadDashboardView();
-      if(viewId === 'attendance') loadAttendanceView();
-      if(viewId === 'students') loadStudentsView();
-      if(viewId === 'users') loadUsersView();
+      // ตรวจสอบว่าหน้าเหล่านั้นโหลดเข้ามาแล้วหรือยังก่อนเรียกใช้ฟังก์ชัน
+      if(viewId === 'dashboard' && typeof loadDashboardView === 'function') loadDashboardView();
+      if(viewId === 'attendance' && typeof loadAttendanceView === 'function') loadAttendanceView();
+      if(viewId === 'students' && typeof loadStudentsView === 'function') loadStudentsView();
+      if(viewId === 'users' && typeof loadUsersView === 'function') loadUsersView();
     }
   </script>
-</body>
-</html>
