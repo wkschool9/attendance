@@ -119,14 +119,21 @@
       document.getElementById('dash-reports-section').classList.replace('col-md-8', 'col-md-12');
     }
 
-    // เรียกหลังบ้าน
-    google.script.run
-      .withSuccessHandler(renderDashboardUI)
-      .withFailureHandler((err) => { alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + err.message); })
-      .getDashboardData(role, classAssigned, targetDate);
+    // 🚀 จุดที่เปลี่ยน: ใช้ API ของเราแทน google.script.run
+    callGasAPI('getDashboardData', {
+      role: role,
+      classAssigned: classAssigned,
+      targetDate: targetDate
+    })
+    .then(function(data) {
+      renderDashboardUI(data); // ส่งข้อมูลที่ได้ไปวาดหน้าจอ
+    })
+    .catch(function(err) {
+      alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + err.message);
+    });
   }
 
-  // ฟังก์ชันจัดรูปแบบ HTML ลงใน Dashboard
+  // ฟังก์ชันจัดรูปแบบ HTML ลงใน Dashboard (เหมือนเดิมทุกประการ)
   function renderDashboardUI(data) {
     // 1. ตัวเลขสรุป
     document.getElementById('dash-total').innerText = data.totalStudents;
