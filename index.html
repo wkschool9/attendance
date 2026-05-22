@@ -13,24 +13,30 @@
     // ฟังก์ชันตัวกลางสำหรับยิง API ไปหา GAS
     // ==========================================
     async function callGasAPI(actionName, dataObj = {}) {
-      dataObj.action = actionName; 
-      try {
-        const response = await fetch(GAS_API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(dataObj)
-        });
-        
-        const result = await response.json();
-        if (result.error) {
-          throw new Error(result.error);
-        }
-        return result; 
-      } catch (error) {
-        console.error("API Error:", error);
-        throw error;
-      }
+  dataObj.action = actionName; 
+  try {
+    const response = await fetch(GAS_API_URL, {
+      method: "POST",
+      headers: {
+        // ใช้ text/plain เสมอในการคุยกับ GAS ข้ามโดเมน เพื่อป้องกันเบราว์เซอร์สกัดกั้น
+        "Content-Type": "text/plain;charset=utf-8" 
+      },
+      body: JSON.stringify(dataObj)
+    });
+    
+    const resText = await response.text(); // อ่านเป็น Text ออกมาก่อนเพื่อป้องกัน JSON พัง
+    const result = JSON.parse(resText);
+    
+    if (!result.success) {
+      throw new Error(result.error);
     }
+    return result.data; 
+  } catch (error) {
+    console.error("API Connection Error:", error);
+    alert("❌ ไม่สามารถดึงข้อมูลจาก Google Sheets ได้: " + error.message);
+    throw error;
+  }
+}
     // ==========================================
 
     document.addEventListener("DOMContentLoaded", function() {
