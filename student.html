@@ -123,107 +123,86 @@
 </div>
 
 <script>
-  let allStudents = [];
+  let currentStudents = [];
 
+  // 1. โหลดรายชื่อนักเรียน
   function loadStudentsView() {
-    const role = currentUser ? currentUser.role : 'teacher';
+    const role = currentUser ? currentUser.role : 'guest';
     const classAssigned = currentUser ? currentUser.class_assigned : '';
-    const tbody = document.getElementById('student-list-body');
     const filterSelect = document.getElementById('std-room-filter');
     
-    // จัดการ UI ตัวกรองห้องเรียนตามสิทธิ์
+    // จัดการ Dropdown และสิทธิ์
     if (role === 'admin') {
-      filterSelect.classList.remove('hidden'); // Admin ให้เลือกสลับห้องดูได้
+      filterSelect.classList.remove('hidden');
     } else {
-      filterSelect.classList.add('hidden');    // ครูทั่วไปซ่อนตัวเลือกห้องไว้
+      filterSelect.classList.add('hidden');
+      if (classAssigned && classAssigned !== 'All') {
+        filterSelect.value = classAssigned;
+      }
     }
-
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center p-5 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดรายชื่อนักเรียน...</td></tr>';
     
-    // ส่งค่าสิทธิ์และห้องเรียนไปกรองข้อมูลหลังบ้าน
-    const selectedRoom = filterSelect.value;
-    google.script.run.withSuccessHandler(function(data) {
-      allStudents = data;
-      renderStudentTable(data);
-    }).getStudents(selectedRoom, role, classAssigned);
-  }
-
-  function renderStudentTable(data) {
+    const room = filterSelect.value;
     const tbody = document.getElementById('student-list-body');
-    tbody.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดข้อมูล...</td></tr>';
     
-    if (data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center p-5 text-muted">ไม่พบข้อมูลนักเรียนในห้องเรียนนี้</td></tr>';
-      return;
-    }
-
-    data.forEach(std => {
-      let statusClass = 'bg-success';
-      if(std.status !== 'กำลังศึกษา') statusClass = 'bg-secondary';
-      
-      // ครูและ Admin ทุกคนที่มีสิทธิ์เห็นตารางนี้ จะสามารถกดแก้ไขหรือลบแถวนั้นๆ ได้เลย
-      let actionBtns = `
-        <button class="btn btn-sm btn-light text-primary rounded-circle me-1" onclick="openEditModal('${std.id}')" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
-        <button class="btn btn-sm btn-light text-danger rounded-circle" onclick="confirmDelete('${std.id}', '${std.name}')" title="ลบ"><i class="fa-solid fa-trash"></i></button>
-      `;
-
-      tbody.innerHTML += `
-        <tr>
-          <td class="ps-3 fw-bold text-primary font-Lexend">${std.id}</td>
-          <td><span class="badge bg-light text-dark border rounded-pill-sm px-2">${std.room}</span></td>
-          <td><span class="badge bg-light text-dark border rounded-pill-sm px-2">${std.no}</span></td>
-          <td><strong class="font-Sarabun fs-6">${std.name}</strong></td>
-          <td><span class="badge ${statusClass} rounded-pill badge-modern shadow-sm">${std.status}</span></td>
-          <td class="text-center p-0">${actionBtns}</td>
-        </tr>
-      `;
+    // 🟢 เปลี่ยนมาใช้ API: ดึงรายชื่อนักเรียน
+    callGasAPI('getStudents', { 
+      room: room, 
+      role: role, 
+      classAssigned: classAssigned 
+    })
+    .then(function(students) {
+      currentStudents = students;
+      renderStudentTable(students); // นำข้อมูลไปวาดตารางตามโค้ดเดิมของคุณ
+    })
+    .catch(function(err) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">❌ เกิดข้อผิดพลาดในการดึงข้อมูล: ' + err.message + '</td></tr>';
     });
   }
 
-  // --- เปิดฟอร์มเพิ่มนักเรียน ---
-  function openAddModal() {
-    const role = currentUser ? currentUser.role : 'teacher';
-    const classAssigned = currentUser ? currentUser.class_assigned : '';
-    const roomSelect = document.getElementById('std-room');
+  // 2. เรนเดอร์ลงตาราง (ส่วนแสดงผล UI เหมือนเดิม)
+  function renderStudentTable(students) {
+    const tbody = document.getElementById('student-list-body');
+    tbody.innerHTML = '';
     
-    document.getElementById('form-mode').value = 'add';
-    document.getElementById('studentModalLabel').innerText = 'เพิ่มรายชื่อนักเรียนใหม่';
-    document.getElementById('studentForm').reset();
-    document.getElementById('std-id').disabled = false;
-    document.getElementById('status-group').classList.add('hidden');
-    
-    // จัดการ Access Control ในฟอร์มเลือกห้องเรียน
-    if (role !== 'admin' && classAssigned) {
-      roomSelect.value = classAssigned; // บังคับเป็นห้องของครูคนนั้น
-      roomSelect.disabled = true;        // ห้ามครูกดสลับห้องเรียนเอง
-    } else {
-      roomSelect.disabled = false;
+    if(students.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="fa-solid fa-folder-open mb-2 fs-3 d-block"></i>ยังไม่มีข้อมูลนักเรียน</td></tr>';
+      return;
     }
-    
-    new bootstrap.Modal(document.getElementById('studentModal')).show();
+
+    students.forEach(std => {
+      let tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="fw-bold text-dark ps-3">${std.id}</td>
+        <td class="text-muted"><span class="badge bg-light text-dark border rounded-pill-sm px-2 py-1"><i class="fa-solid fa-hashtag me-1 text-primary"></i>${std.no}</span></td>
+        <td class="fw-500 font-Sarabun text-dark">${std.name}</td>
+        <td><span class="badge bg-primary rounded-pill-sm px-3 py-1 bg-opacity-10 text-primary border border-primary border-opacity-25">${std.room}</span></td>
+        <td class="text-center">
+          <div class="btn-group shadow-sm">
+            <button class="btn btn-light btn-sm text-primary border" onclick="openEditStudentModal('${std.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button class="btn btn-light btn-sm text-danger border" onclick="confirmDeleteStudent('${std.id}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
-  // --- เปิดฟอร์มแก้ไขนักเรียน ---
-  function openEditModal(id) {
-    const std = allStudents.find(s => s.id.toString() === id.toString());
-    if(!std) return;
-
-    const role = currentUser ? currentUser.role : 'teacher';
-    const classAssigned = currentUser ? currentUser.class_assigned : '';
-    const roomSelect = document.getElementById('std-room');
-
-    document.getElementById('form-mode').value = 'edit';
-    document.getElementById('studentModalLabel').innerText = 'แก้ไขข้อมูลนักเรียน';
-    document.getElementById('std-id').value = std.id;
-    document.getElementById('std-id').disabled = true; // ล็อกไม่ให้แก้รหัสประจำตัว
-    document.getElementById('std-name').value = std.name;
-    document.getElementById('std-no').value = std.no;
-    document.getElementById('std-status').value = std.status;
-    document.getElementById('status-group').classList.remove('hidden');
+  // 3. ฟังก์ชันการเปิด Modal ต่างๆ (ใช้โค้ดเดิม)
+  function openAddStudentModal() {
+    document.getElementById('studentModalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-primary me-2"></i>เพิ่มนักเรียนใหม่';
+    document.getElementById('s-mode').value = 'add';
+    document.getElementById('s-id').value = '';
+    document.getElementById('s-id').disabled = false;
+    document.getElementById('s-name').value = '';
+    document.getElementById('s-no').value = '';
     
-    // ล็อกห้องเรียนตอนแก้ไขสำหรับครูประจำชั้น
-    roomSelect.value = std.room;
+    const role = currentUser ? currentUser.role : 'guest';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+    const roomSelect = document.getElementById('s-room');
+    
     if (role !== 'admin' && classAssigned) {
+      roomSelect.value = classAssigned;
       roomSelect.disabled = true;
     } else {
       roomSelect.disabled = false;
@@ -232,68 +211,100 @@
     new bootstrap.Modal(document.getElementById('studentModal')).show();
   }
 
-  function handleStudentSubmit(e) {
-    e.preventDefault();
-    const mode = document.getElementById('form-mode').value;
-    const btn = document.getElementById('btn-save-student');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> กำลังบันทึกข้อมูล...';
+  function openEditStudentModal(id) {
+    const std = currentStudents.find(s => s.id.toString() === id.toString());
+    if(!std) return;
+
+    document.getElementById('studentModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary me-2"></i>แก้ไขข้อมูลนักเรียน';
+    document.getElementById('s-mode').value = 'edit';
+    document.getElementById('s-id').value = std.id;
+    document.getElementById('s-id').disabled = true;
+    document.getElementById('s-name').value = std.name;
+    document.getElementById('s-room').value = std.room;
+    document.getElementById('s-no').value = std.no;
+    
+    const role = currentUser ? currentUser.role : 'guest';
+    if (role !== 'admin') {
+      document.getElementById('s-room').disabled = true;
+    }
+    
+    new bootstrap.Modal(document.getElementById('studentModal')).show();
+  }
+
+  function openBulkImportModal() {
+    new bootstrap.Modal(document.getElementById('bulkImportModal')).show();
+  }
+
+  // 4. บันทึก/แก้ไข นักเรียน
+  function submitStudent() {
+    const btn = document.getElementById('btnSaveStudentFinal');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> กำลังบันทึก...';
     btn.disabled = true;
 
-    // ดึงค่าห้องเรียน (แม้จะโดน disabled อยู่)
     const studentData = {
-      id: document.getElementById('std-id').value,
-      name: document.getElementById('std-name').value,
-      room: document.getElementById('std-room').value,
-      no: document.getElementById('std-no').value,
-      status: document.getElementById('std-status').value
+      id: document.getElementById('s-id').value,
+      name: document.getElementById('s-name').value,
+      room: document.getElementById('s-room').value,
+      no: document.getElementById('s-no').value
     };
 
-    if(mode === 'add') {
-      google.script.run.withSuccessHandler(() => { finishSubmit(); }).addStudent(studentData);
-    } else {
-      google.script.run.withSuccessHandler(() => { finishSubmit(); }).updateStudent(studentData);
+    const action = document.getElementById('s-mode').value === 'add' ? 'addStudent' : 'updateStudent';
+
+    // 🟢 เปลี่ยนมาใช้ API: เพิ่ม หรือ แก้ไขข้อมูล
+    callGasAPI(action, { student: studentData })
+      .then(function() {
+        bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
+        btn.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i>บันทึกข้อมูลนักเรียน';
+        btn.disabled = false;
+        alert('บันทึกข้อมูลสำเร็จ!');
+        loadStudentsView(); // โหลดตารางใหม่
+      })
+      .catch(function(err) {
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+        btn.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i>บันทึกข้อมูลนักเรียน';
+        btn.disabled = false;
+      });
+  }
+
+  // 5. ลบข้อมูลนักเรียน
+  function confirmDeleteStudent(id) {
+    if(confirm('ยืนยันการลบข้อมูลนักเรียนรหัส ' + id + ' ใช่หรือไม่? (ไม่สามารถกู้คืนได้)')) {
+      
+      // 🟢 เปลี่ยนมาใช้ API: ลบข้อมูล
+      callGasAPI('deleteStudent', { id: id })
+        .then(function() {
+          alert('ลบข้อมูลสำเร็จ');
+          loadStudentsView();
+        })
+        .catch(function(err) {
+          alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+        });
     }
   }
 
-  function finishSubmit() {
-    bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
-    alert('บันทึกข้อมูลนักเรียนสำเร็จเรียบร้อย!');
-    loadStudentsView();
-  }
-
-  // --- ยืนยันการลบ ---
-  function confirmDelete(id, name) {
-    if(confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบนักเรียน: ${name} (รหัสประจำตัว: ${id}) ออกจากระบบ?`)) {
-      google.script.run.withSuccessHandler(() => {
-        alert('ลบข้อมูลเรียบร้อยแล้ว');
-        loadStudentsView();
-      }).deleteStudent(id);
-    }
-  }
-
-  // --- ประมวลผลนำเข้าไฟล์ CSV ---
-  function processCSV() {
-    const fileInput = document.getElementById('csvFileInput');
-    const file = fileInput.files[0];
-    if (!file) return alert("กรุณาเลือกไฟล์ .csv ก่อนครับ");
-
-    const role = currentUser ? currentUser.role : 'teacher';
-    const classAssigned = currentUser ? currentUser.class_assigned : '';
+  // 6. การนำเข้าไฟล์ CSV (Bulk Import)
+  document.getElementById('excelFileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if(!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(e) {
-      const text = e.target.result;
-      const lines = text.split("\n");
-      const students = [];
+    reader.onload = function(evt) {
+      const bstr = evt.target.result;
+      const lines = bstr.split(/\r?\n/);
+      let students = [];
       let deniedCount = 0;
-      
-      for (let i = 0; i < lines.length; i++) {
+      const role = currentUser ? currentUser.role : 'guest';
+      const classAssigned = currentUser ? currentUser.class_assigned : '';
+
+      // ข้ามแถวที่ 1 (Header)
+      for(let i = 1; i < lines.length; i++) { 
         if(!lines[i].trim()) continue;
         const cols = lines[i].split(",");
+        
         if (cols.length >= 4) {
           const importedRoom = cols[2].trim();
           
-          // ระบบความปลอดภัย: ถ้าเป็นครูประจำชั้น และห้องในไฟล์ Excel ไม่ตรงกับห้องตัวเอง ให้ปฏิเสธการบันทึกบรรทัดนั้น
+          // ระบบความปลอดภัย: ถ้าเป็นครูประจำชั้น จะนำเข้าได้เฉพาะห้องของตัวเอง
           if (role !== 'admin' && importedRoom !== classAssigned) {
             deniedCount++;
             continue;
@@ -303,7 +314,7 @@
             id: cols[0].trim(),
             name: cols[1].trim(),
             room: importedRoom,
-            no: cols[2].trim() // ใช้คอลัมน์ลำดับที่ 4 ใน Excel
+            no: cols[3].trim() // สมมติให้ลำดับเลขที่อยู่คอลัมน์ที่ 4 (Index 3) ตามไฟล์ตัวอย่าง
           });
         }
       }
@@ -314,17 +325,24 @@
 
       if(students.length > 0) {
         if(confirm(`พบข้อมูลนักเรียนที่ถูกต้องตรงตามสิทธิ์ ${students.length} รายการ ต้องการยืนยันนำเข้าใช่หรือไม่?`)) {
-          google.script.run.withSuccessHandler(() => {
-            alert('นำเข้าข้อมูลสำเร็จเรียบร้อย!');
-            bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
-            fileInput.value = ''; // เคลียร์ไฟล์
-            loadStudentsView();
-          }).bulkImportStudents(students);
+          
+          // 🟢 เปลี่ยนมาใช้ API: อัปโหลดข้อมูลรวดเดียว
+          callGasAPI('bulkImportStudents', { students: students })
+            .then(function() {
+              alert('นำเข้าข้อมูลสำเร็จเรียบร้อย!');
+              bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
+              document.getElementById('excelFileInput').value = ''; // เคลียร์ไฟล์ออก
+              loadStudentsView();
+            })
+            .catch(function(err) {
+              alert('เกิดข้อผิดพลาดในการนำเข้า: ' + err.message);
+            });
+            
         }
-      } else if(deniedCount === 0) {
-        alert('ไม่พบข้อมูลที่ตรงตามรูปแบบกรุณาตรวจสอบโครงสร้างไฟล์ .csv อีกครั้งครับ');
+      } else {
+        alert('ไม่พบข้อมูลนักเรียนที่สามารถนำเข้าได้');
       }
     };
-    reader.readAsText(file, 'UTF-8');
-  }
+    reader.readAsText(file);
+  });
 </script>
