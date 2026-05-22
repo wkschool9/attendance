@@ -72,77 +72,89 @@
 </div>
 
 <script>
-  let allUsers = [];
+  let currentUsersList = [];
 
+  // 1. โหลดรายชื่อผู้ใช้งาน
   function loadUsersView() {
     const tbody = document.getElementById('user-list-body');
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted p-5"><span class="spinner-border spinner-border-sm me-2"></span>กำลังดึงข้อมูล...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดข้อมูลบุคลากร...</td></tr>';
     
-    google.script.run.withSuccessHandler(function(data) {
-      allUsers = data;
-      tbody.innerHTML = '';
-      if(data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted p-5">ไม่พบข้อมูลผู้ใช้งาน</td></tr>';
-        return;
-      }
-      
-      data.forEach(user => {
-        let roleBadge = user.class_assigned === 'All' 
-          ? '<span class="badge bg-primary rounded-pill shadow-sm px-3 py-2">ผู้ดูแลระบบ (All)</span>' 
-          : `<span class="badge bg-light text-dark border rounded-pill shadow-sm px-3 py-2">ประจำชั้น ${user.class_assigned}</span>`;
-
-        let actionBtns = `
-          <button class="btn btn-sm btn-light text-primary rounded-circle me-1" onclick="openEditUserModal('${user.username}')" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
-          <button class="btn btn-sm btn-light text-danger rounded-circle" onclick="confirmDeleteUser('${user.username}')" title="ลบ"><i class="fa-solid fa-trash"></i></button>
-        `;
-
-        tbody.innerHTML += `
-          <tr>
-            <td class="ps-3"><i class="fa-solid fa-user text-muted me-3 fs-6 p-2 bg-light rounded-circle"></i><strong class="text-dark fs-6">${user.username}</strong></td>
-            <td><span class="font-Sarabun fs-6 fw-500">${user.name || '-'}</span></td>
-            <td>${roleBadge}</td>
-            <td class="text-center p-0">${actionBtns}</td>
-          </tr>
-        `;
+    // 🟢 เปลี่ยนมาใช้ API: ดึงข้อมูลผู้ใช้งานทั้งหมด
+    callGasAPI('getUsers')
+      .then(function(users) {
+        currentUsersList = users;
+        renderUsersTable(users);
+      })
+      .catch(function(err) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">❌ เกิดข้อผิดพลาด: ${err.message}</td></tr>`;
       });
-    }).getUsers();
   }
 
-  // --- เปิดฟอร์มเพิ่มบุคลากร ---
+  // 2. วาดตาราง (ส่วน UI เหมือนเดิม)
+  function renderUsersTable(users) {
+    const tbody = document.getElementById('user-list-body');
+    tbody.innerHTML = '';
+    
+    if(!users || users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">ยังไม่มีข้อมูลผู้ใช้งาน</td></tr>';
+      return;
+    }
+
+    users.forEach(u => {
+      let roleBadge = u.role === 'admin' 
+        ? '<span class="badge bg-danger rounded-pill-sm px-3 bg-opacity-10 text-danger border border-danger border-opacity-25"><i class="fa-solid fa-crown me-1"></i>ผู้ดูแลระบบ</span>' 
+        : '<span class="badge bg-primary rounded-pill-sm px-3 bg-opacity-10 text-primary border border-primary border-opacity-25"><i class="fa-solid fa-user-tie me-1"></i>ครูประจำชั้น</span>';
+
+      let tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="fw-bold text-dark ps-3">${u.username}</td>
+        <td class="fw-500 font-Sarabun text-dark">${u.name}</td>
+        <td>
+          <div class="d-flex flex-column gap-1 align-items-start">
+            ${roleBadge}
+            <span class="small text-muted"><i class="fa-solid fa-chalkboard text-secondary me-1"></i>ห้อง: ${u.class_assigned}</span>
+          </div>
+        </td>
+        <td class="text-center">
+          <div class="btn-group shadow-sm">
+            <button class="btn btn-light btn-sm text-primary border" onclick="openEditUserModal('${u.username}')"><i class="fa-solid fa-pen-to-square"></i></button>
+            <button class="btn btn-light btn-sm text-danger border" onclick="confirmDeleteUser('${u.username}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // 3. ฟังก์ชันเปิดหน้าต่าง Modal
   function openAddUserModal() {
+    document.getElementById('userModalTitle').innerHTML = '<i class="fa-solid fa-user-plus text-primary me-2"></i>เพิ่มผู้ใช้งานระบบ';
     document.getElementById('u-mode').value = 'add';
-    document.getElementById('userModalLabel').innerText = 'เพิ่มผู้ใช้งานระบบใหม่';
-    document.getElementById('userForm').reset();
-    
+    document.getElementById('u-username').value = '';
     document.getElementById('u-username').disabled = false;
-    document.getElementById('u-password').required = true; // เพิ่มใหม่ต้องใส่รหัสผ่านเสมอ
-    
+    document.getElementById('u-password').value = '';
+    document.getElementById('u-name').value = '';
+    document.getElementById('u-class-assigned').value = 'All'; // ค่าเริ่มต้นให้เป็นแอดมิน
     new bootstrap.Modal(document.getElementById('userModal')).show();
   }
 
-  // --- เปิดฟอร์มแก้ไขบุคลากร ---
   function openEditUserModal(username) {
-    const user = allUsers.find(u => u.username === username);
+    const user = currentUsersList.find(u => u.username === username);
     if(!user) return;
 
+    document.getElementById('userModalTitle').innerHTML = '<i class="fa-solid fa-user-pen text-primary me-2"></i>แก้ไขข้อมูลผู้ใช้งาน';
     document.getElementById('u-mode').value = 'edit';
-    document.getElementById('userModalLabel').innerText = 'แก้ไขข้อมูลผู้ใช้งาน';
-    document.getElementById('userForm').reset();
-    
     document.getElementById('u-username').value = user.username;
-    document.getElementById('u-username').disabled = true; // ห้ามเปลี่ยน Username หลัก
-    document.getElementById('u-name').value = user.name || '';
+    document.getElementById('u-username').disabled = true; // ล็อกไม่ให้แก้ Username
+    document.getElementById('u-password').value = ''; // ว่างไว้เผื่อต้องการเปลี่ยนรหัส
+    document.getElementById('u-name').value = user.name;
     document.getElementById('u-class-assigned').value = user.class_assigned;
-    
-    // เวลาแก้ไข รหัสผ่านจะไม่จำเป็นต้องกรอก หากเว้นว่างไว้คือรหัสผ่านเดิม
-    document.getElementById('u-password').required = false; 
     
     new bootstrap.Modal(document.getElementById('userModal')).show();
   }
 
-  // --- ยืนยันการบันทึกข้อมูล ---
-  function handleUserSubmit(e) {
-    e.preventDefault();
+  // 4. ฟังก์ชันบันทึกและแก้ไข
+  function submitUser() {
     const mode = document.getElementById('u-mode').value;
     const btn = document.getElementById('btnSaveUserFinal');
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> กำลังบันทึก...';
@@ -155,11 +167,18 @@
       class_assigned: document.getElementById('u-class-assigned').value
     };
 
-    if(mode === 'add') {
-      google.script.run.withSuccessHandler(finishUserSubmit).addUser(userData);
-    } else {
-      google.script.run.withSuccessHandler(finishUserSubmit).updateUser(userData);
-    }
+    const action = mode === 'add' ? 'addUser' : 'updateUser';
+
+    // 🟢 เปลี่ยนมาใช้ API: เพิ่ม หรือ แก้ไข ผู้ใช้งาน
+    callGasAPI(action, { user: userData })
+      .then(function() {
+        finishUserSubmit();
+      })
+      .catch(function(err) {
+        alert('เกิดข้อผิดพลาดในการบันทึก: ' + err.message);
+        btn.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i>บันทึกข้อมูลบุคลากร';
+        btn.disabled = false;
+      });
   }
 
   function finishUserSubmit() {
@@ -168,21 +187,27 @@
     btn.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i>บันทึกข้อมูลบุคลากร';
     btn.disabled = false;
     alert('บันทึกข้อมูลผู้ใช้งานสำเร็จ!');
-    loadUsersView();
+    loadUsersView(); // โหลดหน้าตารางใหม่
   }
 
-  // --- ยืนยันการลบ ---
+  // 5. ฟังก์ชันยืนยันการลบ
   function confirmDeleteUser(username) {
     if(currentUser && currentUser.username === username) {
       alert('ไม่อนุญาตให้ลบบัญชีที่คุณกำลังใช้งานอยู่ ณ ขณะนี้ได้ครับ');
       return;
     }
 
-    if(confirm(`ยืนยันการลบผู้ใช้งาน: ${username} ออกจากระบบ?\n*การกระทำนี้ไม่สามารถกู้คืนได้*`)) {
-      google.script.run.withSuccessHandler(function() {
-        alert('ลบผู้ใช้งานเรียบร้อยแล้ว');
-        loadUsersView();
-      }).deleteUser(username);
+    if(confirm(`ยืนยันการลบบัญชีผู้ใช้งาน "${username}" ใช่หรือไม่? (ไม่สามารถกู้คืนได้)`)) {
+      
+      // 🟢 เปลี่ยนมาใช้ API: ลบผู้ใช้งาน
+      callGasAPI('deleteUser', { username: username })
+        .then(function() {
+          alert('ลบข้อมูลสำเร็จ');
+          loadUsersView();
+        })
+        .catch(function(err) {
+          alert('เกิดข้อผิดพลาดในการลบ: ' + err.message);
+        });
     }
   }
 </script>
