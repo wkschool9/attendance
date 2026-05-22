@@ -1,0 +1,173 @@
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <h2 class="fw-bold m-0 text-dark"><i class="fa-solid fa-chart-line text-primary me-2"></i>แผงควบคุมสรุปข้อมูล</h2>
+  
+  <div class="d-flex align-items-center bg-white p-2 rounded-pill shadow-sm">
+    <label for="dash-date-picker" class="text-muted small fw-500 mx-3 m-0">ประจำวันที่:</label>
+    <input type="date" id="dash-date-picker" class="form-control form-control-sm border-0 bg-light rounded-pill px-3" onchange="loadDashboard()">
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3 col-6">
+    <div class="modern-card p-3 d-flex align-items-center gap-3" style="background-color: rgba(0, 123, 255, 0.05); border-color: rgba(0, 123, 255, 0.1);">
+      <div class="bg-primary text-white p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+        <i class="fa-solid fa-users fa-xl"></i>
+      </div>
+      <div>
+        <div class="small text-muted fw-500">นักเรียนในดูแล</div>
+        <h2 id="dash-total" class="fw-bold m-0 text-primary">0</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="modern-card p-3 d-flex align-items-center gap-3" style="background-color: rgba(40, 167, 69, 0.05); border-color: rgba(40, 167, 69, 0.1);">
+      <div class="bg-success text-white p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+        <i class="fa-solid fa-circle-check fa-xl"></i>
+      </div>
+      <div>
+        <div class="small text-muted fw-500">มาเรียน</div>
+        <h2 id="dash-present" class="fw-bold m-0 text-success">0</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="modern-card p-3 d-flex align-items-center gap-3" style="background-color: rgba(220, 53, 69, 0.05); border-color: rgba(220, 53, 69, 0.1);">
+      <div class="bg-danger text-white p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+        <i class="fa-solid fa-circle-xmark fa-xl"></i>
+      </div>
+      <div>
+        <div class="small text-muted fw-500">ขาดเรียน</div>
+        <h2 id="dash-absent" class="fw-bold m-0 text-danger">0</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="modern-card p-3 d-flex align-items-center gap-3" style="background-color: rgba(255, 193, 7, 0.05); border-color: rgba(255, 193, 7, 0.1);">
+      <div class="bg-warning text-dark p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+        <i class="fa-solid fa-fever fa-xl"></i>
+      </div>
+      <div>
+        <div class="small text-muted fw-500">ลาป่วย</div>
+        <h2 id="dash-sick" class="fw-bold m-0 text-dark">0</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div id="dash-reports-section" class="col-md-8">
+    
+    <div class="modern-card p-4 mb-4 border-top border-danger border-4">
+      <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-user-xmark me-2"></i>นักเรียนที่ขาดเรียน (ในวันที่เลือก)</h6>
+      <ul class="list-group list-group-flush" id="list-absent-today">
+        <li class="list-group-item text-muted text-center py-3">กำลังโหลดข้อมูล...</li>
+      </ul>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="modern-card p-4 border-top border-warning border-4 h-100">
+          <h6 class="fw-bold text-warning-emphasis mb-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>ขาดติดกัน 3-4 วัน (รอบเดือน)</h6>
+          <ul class="list-group list-group-flush" id="list-absent-3days"></ul>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="modern-card p-4 border-top border-danger border-4 h-100">
+          <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-radiation me-2"></i>ขาดติดกัน 5 วันขึ้นไป (รอบเดือน)</h6>
+          <ul class="list-group list-group-flush" id="list-absent-5days"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dash-admin-room-status" class="col-md-4 hidden">
+    <div class="modern-card p-4 bg-primary text-white h-100" style="background: linear-gradient(135deg, #0d6efd, #0dcaf0);">
+      <h6 class="fw-bold mb-4"><i class="fa-solid fa-clipboard-check me-2"></i>สถานะการลงเวลาเรียนรายห้อง (Admin)</h6>
+      <div class="bg-white rounded-3 p-2 text-dark">
+        <ul class="list-group list-group-flush" id="list-room-status">
+          </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // โหลดเมื่อเปิดหน้า Dashboard
+  function loadDashboard() {
+    // ถ้ายังไม่ได้เลือกวันที่ ให้ตั้งค่าเป็นวันปัจจุบัน
+    let dateInput = document.getElementById('dash-date-picker');
+    if (!dateInput.value) {
+      let today = new Date();
+      // จัดฟอร์แมต YYYY-MM-DD เพื่อใส่ใน input type="date"
+      let dd = String(today.getDate()).padStart(2, '0');
+      let mm = String(today.getMonth() + 1).padStart(2, '0');
+      let yyyy = today.getFullYear();
+      dateInput.value = yyyy + '-' + mm + '-' + dd;
+    }
+    
+    // ดึงค่าวันที่ สิทธิ์ และห้องของ User ปัจจุบัน
+    const targetDate = dateInput.value;
+    const role = currentUser ? currentUser.role : 'guest';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+    
+    // จัดการแสดงผลเฉพาะ Admin
+    if (role === 'admin') {
+      document.getElementById('dash-admin-room-status').classList.remove('hidden');
+      document.getElementById('dash-reports-section').classList.replace('col-md-12', 'col-md-8');
+    } else {
+      document.getElementById('dash-admin-room-status').classList.add('hidden');
+      document.getElementById('dash-reports-section').classList.replace('col-md-8', 'col-md-12');
+    }
+
+    // เรียกหลังบ้าน
+    google.script.run
+      .withSuccessHandler(renderDashboardUI)
+      .withFailureHandler((err) => { alert('เกิดข้อผิดพลาดในการดึงข้อมูล: ' + err.message); })
+      .getDashboardData(role, classAssigned, targetDate);
+  }
+
+  // ฟังก์ชันจัดรูปแบบ HTML ลงใน Dashboard
+  function renderDashboardUI(data) {
+    // 1. ตัวเลขสรุป
+    document.getElementById('dash-total').innerText = data.totalStudents;
+    document.getElementById('dash-present').innerText = data.summary.present;
+    document.getElementById('dash-absent').innerText = data.summary.absent;
+    document.getElementById('dash-sick').innerText = data.summary.sick;
+
+    // Helper function สำหรับสร้าง List รายชื่อ
+    const generateStudentListHTML = (list, isCount = false) => {
+      if (list.length === 0) return '<li class="list-group-item text-muted text-center py-3 border-0 bg-transparent"><i class="fa-solid fa-check-circle text-success mb-2 fs-4 d-block"></i>ไม่มีข้อมูล</li>';
+      return list.map(item => {
+        let std = isCount ? item.student : item;
+        let countHtml = isCount ? `<span class="badge bg-danger rounded-pill">${item.count} วัน</span>` : '';
+        return `
+          <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 border-bottom border-light">
+            <div>
+              <span class="badge bg-secondary rounded-pill-sm me-2">${std.room}</span> 
+              <span class="text-dark fw-500 font-Sarabun">${std.name}</span>
+            </div>
+            ${countHtml}
+          </li>
+        `;
+      }).join('');
+    };
+
+    // 2. เรนเดอร์รายการขาดเรียน
+    document.getElementById('list-absent-today').innerHTML = generateStudentListHTML(data.absentTodayList, false);
+    document.getElementById('list-absent-3days').innerHTML = generateStudentListHTML(data.absent3DaysList, true);
+    document.getElementById('list-absent-5days').innerHTML = generateStudentListHTML(data.absent5DaysList, true);
+
+    // 3. เรนเดอร์สถานะห้อง (สำหรับ Admin)
+    if (data.roomStatusList && data.roomStatusList.length > 0) {
+      let roomHtml = data.roomStatusList.map(r => `
+        <li class="list-group-item d-flex justify-content-between align-items-center border-0 mb-1 rounded">
+          <span class="fw-bold text-dark">${r.room}</span>
+          ${r.isChecked 
+            ? '<span class="badge bg-success rounded-pill px-3 py-2"><i class="fa-solid fa-check me-1"></i>เช็คแล้ว</span>' 
+            : '<span class="badge bg-light text-danger border border-danger rounded-pill px-3 py-2"><i class="fa-solid fa-clock me-1"></i>ยังไม่เช็ค</span>'}
+        </li>
+      `).join('');
+      document.getElementById('list-room-status').innerHTML = roomHtml;
+    }
+  }
+</script>

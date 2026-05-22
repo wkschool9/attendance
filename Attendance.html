@@ -1,0 +1,154 @@
+<div class="p-1">
+  
+  <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 bg-white border">
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="small text-muted fw-bold mb-1"><i class="fa-solid fa-clock me-1 text-primary"></i>วันที่บันทึก</label>
+        <input type="date" id="att-date-input" class="form-control rounded-pill bg-light border-0 text-center shadow-sm" onchange="loadAttendanceView()">
+      </div>
+      <div class="col-6">
+        <label class="small text-muted fw-bold mb-1"><i class="fa-solid fa-users me-1 text-primary"></i>ชั้นเรียน</label>
+        <select class="form-select rounded-pill bg-light border-0 fw-bold shadow-sm" id="att-room-select" onchange="loadAttendanceView()">
+          <option value="อนุบาล 2">อนุบาล 2</option>
+          <option value="อนุบาล 3">อนุบาล 3</option>
+          <option value="ป.1">ประถมศึกษาปีที่ 1</option> 
+          <option value="ป.2">ประถมศึกษาปีที่ 2</option> 
+          <option value="ป.3">ประถมศึกษาปีที่ 3</option> 
+          <option value="ป.4">ประถมศึกษาปีที่ 4</option> 
+          <option value="ป.5">ประถมศึกษาปีที่ 5</option> 
+          <option value="ป.6">ประถมศึกษาปีที่ 6</option> 
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 bg-white text-center border">
+    <span class="small fw-bold text-muted mb-2 d-block"><i class="fa-solid fa-bolt text-warning me-1"></i>เลือกสถานะด่วนให้กับทุกคน:</span>
+    <div class="d-flex gap-1 justify-content-center">
+      <button type="button" class="btn btn-sm btn-success rounded-pill px-3 border-0 shadow-sm" onclick="bulkSelectStatus('มา')">มาทั้งหมด</button>
+      <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 border-0 shadow-sm" onclick="bulkSelectStatus('ขาด')">ขาดทั้งหมด</button>
+      <button type="button" class="btn btn-sm btn-info rounded-pill px-3 text-white border-0 shadow-sm" onclick="bulkSelectStatus('ลา')">ลาทั้งหมด</button>
+      <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 text-dark border-0 shadow-sm" onclick="bulkSelectStatus('ลาป่วย')">ป่วยทั้งหมด</button>
+    </div>
+  </div>
+
+  <div id="attendance-mobile-list" style="margin-bottom: 90px;">
+    </div>
+</div>
+
+<div class="fixed-bottom p-3 bg-white border-top shadow-lg" style="bottom: 64px; z-index: 1010;">
+  <button class="btn btn-primary w-100 py-2.5 rounded-pill fw-bold shadow border-0 fs-5" onclick="submitAttendance()">
+    <i class="fa-solid fa-cloud-arrow-up me-2"></i>บันทึกข้อมูลและส่งงาน
+  </button>
+</div>
+
+<style>
+  /* ตกแต่งปุ่มสถานะวิทยุในการ์ดให้ใหญ่พอดีนิ้วโป้งคนกด */
+  .mobile-status-btn {
+    flex: 1;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 12px !important;
+    background-color: #fafafa;
+    color: #555;
+    font-weight: 600;
+    padding: 8px 2px !important;
+    font-size: 0.85rem;
+    text-align: center;
+    transition: 0.15s;
+  }
+  .btn-check:checked + .btn-success-active { background-color: #198754 !important; color: white !important; border-color: #198754 !important; }
+  .btn-check:checked + .btn-danger-active { background-color: #dc3545 !important; color: white !important; border-color: #dc3545 !important; }
+  .btn-check:checked + .btn-info-active { background-color: #0dcaf0 !important; color: white !important; border-color: #0dcaf0 !important; }
+  .btn-check:checked + .btn-warning-active { background-color: #ffc107 !important; color: #212529 !important; border-color: #ffc107 !important; }
+</style>
+
+<script>
+  function loadAttendanceView() {
+    let dateInput = document.getElementById('att-date-input');
+    if (!dateInput.value) {
+      let today = new Date();
+      dateInput.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    }
+
+    const role = currentUser ? currentUser.role : 'guest';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+    const roomSelect = document.getElementById('att-room-select');
+    
+    if (role !== 'admin' && classAssigned) {
+      roomSelect.value = classAssigned;
+      roomSelect.disabled = true;
+    } else {
+      roomSelect.disabled = false;
+    }
+
+    const currentRoom = roomSelect.value;
+    const container = document.getElementById('attendance-mobile-list');
+    container.innerHTML = '<div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>กำลังประมวลรายชื่อนักเรียน...</div>';
+    
+    google.script.run.withSuccessHandler(function(students) {
+      container.innerHTML = '';
+      if(students.length === 0) {
+        container.innerHTML = '<div class="text-center text-danger py-5"><i class="fa-solid fa-triangle-exclamation me-1"></i>ไม่พบรายชื่อในระบบห้องเรียนนี้</div>';
+        return;
+      }
+      
+      students.forEach(std => {
+        container.innerHTML += `
+          <div class="card border-0 shadow-sm rounded-4 p-3 mb-2 bg-white border-start border-4 border-primary">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="badge bg-light text-primary rounded-pill px-3 py-1.5 fw-bold">เลขที่ ${std.no}</span>
+              <strong class="text-dark fs-6 font-Sarabun">${std.name}</strong>
+            </div>
+            <div class="d-flex gap-1 mt-1">
+              <input type="radio" class="btn-check" name="status-${std.id}" id="p-${std.id}" value="มา" checked>
+              <label class="btn mobile-status-btn btn-success-active" for="p-${std.id}">มา</label>
+              <input type="radio" class="btn-check" name="status-${std.id}" id="a-${std.id}" value="ขาด">
+              <label class="btn mobile-status-btn btn-danger-active" for="a-${std.id}">ขาด</label>
+              <input type="radio" class="btn-check" name="status-${std.id}" id="l-${std.id}" value="ลา">
+              <label class="btn mobile-status-btn btn-info-active" for="l-${std.id}">ลา</label>
+              <input type="radio" class="btn-check" name="status-${std.id}" id="s-${std.id}" value="ลาป่วย">
+              <label class="btn mobile-status-btn btn-warning-active" for="s-${std.id}">ป่วย</label>
+            </div>
+          </div>
+        `;
+      });
+    }).getStudents(currentRoom, role, classAssigned);
+  }
+
+  function bulkSelectStatus(statusValue) {
+    const radioButtons = document.querySelectorAll(`#attendance-mobile-list input[value="${statusValue}"]`);
+    radioButtons.forEach(radio => { radio.checked = true; });
+  }
+
+  function submitAttendance() {
+    const room = document.getElementById('att-room-select').value;
+    const selectedDate = document.getElementById('att-date-input').value;
+    const role = currentUser ? currentUser.role : 'guest';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+    
+    const btn = document.querySelector('button[onclick="submitAttendance()"]');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึกข้อมูล...';
+    btn.disabled = true;
+
+    google.script.run.withSuccessHandler(function(students) {
+      let dataToSave = [];
+      students.forEach(std => {
+        const selectedRadio = document.querySelector(`input[name="status-${std.id}"]:checked`);
+        if (selectedRadio) {
+          dataToSave.push({ student_id: std.id, status: selectedRadio.value });
+        }
+      });
+      
+      google.script.run.withSuccessHandler(function() {
+        alert('🎉 ระบบบันทึกข้อมูลการลงเวลาเรียนประจำวันสำเร็จเรียบร้อยแล้ว!');
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up me-2"></i>บันทึกข้อมูลวันนี้';
+        btn.disabled = false;
+        
+        // 🚀 หากถูกเรียกเปิดใช้งานในโปรแกรม LINE App (LIFF) จะปิดหน้าจอตนเองอัตโนมัติทันที
+        if (typeof liff !== 'undefined' && liff.isInClient()) {
+          liff.closeWindow();
+        }
+      }).saveAttendance(dataToSave, selectedDate);
+    }).getStudents(room, role, classAssigned);
+  }
+</script>

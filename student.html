@@ -1,0 +1,330 @@
+<div class="modern-card text-dark p-4 shadow-sm">
+  <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <h4 class="fw-bold m-0"><i class="fa-solid fa-id-card-clip text-primary me-2"></i>จัดการทะเบียนนักเรียน</h4>
+      <select class="form-select form-select-modern rounded-pill shadow-sm py-1 px-5 fs-6 w-auto hidden" id="std-room-filter" onchange="loadStudentsView()">
+        <option value="">แสดงทุกห้องเรียน</option>
+        <option value="ป.1">ประถมศึกษาปีที่ 1</option>
+        <option value="ป.2">ประถมศึกษาปีที่ 2</option>
+        <option value="ป.3">ประถมศึกษาปีที่ 3</option>
+        <option value="ป.4">ประถมศึกษาปีที่ 4</option>
+        <option value="ป.5">ประถมศึกษาปีที่ 5</option>
+        <option value="ป.6">ประถมศึกษาปีที่ 6</option>
+        <option value="อ.2">อนุบาล 2</option>
+        <option value="อ.3">อนุบาล 3</option>
+      </select>
+    </div>
+    
+    <div id="student-actions" class="d-flex gap-2">
+      <button class="btn btn-outline-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#bulkImportModal">
+        <i class="fa-solid fa-file-excel me-1"></i> นำเข้าจาก Excel
+      </button>
+      <button class="btn btn-modern btn-modern-primary rounded-pill px-4 shadow-sm" onclick="openAddModal()">
+        <i class="fa-solid fa-plus-circle me-1"></i> เพิ่มนักเรียนใหม่
+      </button>
+    </div>
+  </div>
+  
+  <div class="table-responsive">
+    <table class="table table-modern align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3" style="width: 15%;">รหัสประจำตัว</th>
+          <th style="width: 12%;">ชั้นเรียน</th>
+          <th style="width: 12%;">เลขที่</th>
+          <th style="width: 36%;">ชื่อ-นามสกุล นักเรียน</th>
+          <th style="width: 15%;">สถานะ</th>
+          <th class="text-center" style="width: 10%;">จัดการ</th>
+        </tr>
+      </thead>
+      <tbody id="student-list-body">
+        </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="studentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modern-card p-0 border-0 overflow-hidden shadow-lg">
+      <div class="modal-header bg-white p-4 border-0 pb-2">
+        <h5 class="modal-title fw-bold" id="studentModalLabel">จัดการข้อมูลนักเรียน</h5>
+        <button type="button" class="btn-close rounded-pill" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4 pt-0">
+        <form id="studentForm" onsubmit="handleStudentSubmit(event)">
+          <input type="hidden" id="form-mode" value="add">
+          
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-600">รหัสประจำตัวนักเรียน</label>
+            <input type="text" class="form-control form-control-modern border-0 bg-light shadow-sm" id="std-id" placeholder="ระบุเลขประจำตัวนักเรียน" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-600">ชื่อ-นามสกุล</label>
+            <input type="text" class="form-control form-control-modern border-0 bg-light shadow-sm" id="std-name" placeholder="ชื่อจริง - นามสกุล" required>
+          </div>
+          <div class="row g-3">
+            <div class="col-6 mb-3">
+              <label class="form-label text-muted small fw-600">ระดับชั้น</label>
+              <select class="form-select form-select-modern border-0 bg-light shadow-sm" id="std-room">
+                <option value="อนุบาล 2">อนุบาล 2</option>
+                <option value="อนุบาล 3">อนุบาล 3</option>
+                <option value="ป.1">ประถมศึกษาปีที่ 1</option> 
+                <option value="ป.2">ประถมศึกษาปีที่ 2</option> 
+                <option value="ป.3">ประถมศึกษาปีที่ 3</option> 
+                <option value="ป.4">ประถมศึกษาปีที่ 4</option> 
+                <option value="ป.5">ประถมศึกษาปีที่ 5</option> 
+                <option value="ป.6">ประถมศึกษาปีที่ 6</option>
+              </select>
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label text-muted small fw-600">เลขที่</label>
+              <input type="number" class="form-control form-control-modern border-0 bg-light shadow-sm" id="std-no" required>
+            </div>
+          </div>
+          <div class="mb-3" id="status-group">
+            <label class="form-label text-muted small fw-600">สถานะนักเรียน</label>
+            <select class="form-select form-select-modern border-0 bg-light shadow-sm text-success fw-bold" id="std-status">
+              <option value="กำลังศึกษา">กำลังศึกษา</option>
+              <option value="จบการศึกษา">จบการศึกษา</option>
+              <option value="ย้ายสถานศึกษา">ย้ายสถานศึกษา</option>
+              <option value="พ้นสภาพ">พ้นสภาพ</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-modern btn-modern-primary w-100 py-3 rounded-pill shadow mt-2" id="btn-save-student">
+            <i class="fa-solid fa-floppy-disk me-2"></i>บันทึกข้อมูลนักเรียน
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modern-card border-0 shadow-lg">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-file-csv text-success me-2"></i>นำเข้าข้อมูลนักเรียน (.CSV)</h5>
+        <button type="button" class="btn-close rounded-pill" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info small mb-4" id="import-notice-text">
+          <b>คำแนะนำการเตรียมไฟล์:</b> เรียงคอลัมน์ใน Excel ดังนีู้:<br>
+          รหัสประจำตัว, ชื่อ-นามสกุล, ชั้น, เลขที่ (แล้วบันทึกเป็นไฟล์ .CSV)
+        </div>
+        <div class="mb-3">
+          <input type="file" id="csvFileInput" class="form-control rounded-pill p-3 border shadow-sm" accept=".csv">
+        </div>
+        <button class="btn btn-success w-100 rounded-pill py-2 shadow-sm" onclick="processCSV()">
+          <i class="fa-solid fa-upload me-2"></i>อัปโหลดและบันทึกรายชื่อ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let allStudents = [];
+
+  function loadStudentsView() {
+    const role = currentUser ? currentUser.role : 'teacher';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+    const tbody = document.getElementById('student-list-body');
+    const filterSelect = document.getElementById('std-room-filter');
+    
+    // จัดการ UI ตัวกรองห้องเรียนตามสิทธิ์
+    if (role === 'admin') {
+      filterSelect.classList.remove('hidden'); // Admin ให้เลือกสลับห้องดูได้
+    } else {
+      filterSelect.classList.add('hidden');    // ครูทั่วไปซ่อนตัวเลือกห้องไว้
+    }
+
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center p-5 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>กำลังโหลดรายชื่อนักเรียน...</td></tr>';
+    
+    // ส่งค่าสิทธิ์และห้องเรียนไปกรองข้อมูลหลังบ้าน
+    const selectedRoom = filterSelect.value;
+    google.script.run.withSuccessHandler(function(data) {
+      allStudents = data;
+      renderStudentTable(data);
+    }).getStudents(selectedRoom, role, classAssigned);
+  }
+
+  function renderStudentTable(data) {
+    const tbody = document.getElementById('student-list-body');
+    tbody.innerHTML = '';
+    
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center p-5 text-muted">ไม่พบข้อมูลนักเรียนในห้องเรียนนี้</td></tr>';
+      return;
+    }
+
+    data.forEach(std => {
+      let statusClass = 'bg-success';
+      if(std.status !== 'กำลังศึกษา') statusClass = 'bg-secondary';
+      
+      // ครูและ Admin ทุกคนที่มีสิทธิ์เห็นตารางนี้ จะสามารถกดแก้ไขหรือลบแถวนั้นๆ ได้เลย
+      let actionBtns = `
+        <button class="btn btn-sm btn-light text-primary rounded-circle me-1" onclick="openEditModal('${std.id}')" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button class="btn btn-sm btn-light text-danger rounded-circle" onclick="confirmDelete('${std.id}', '${std.name}')" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+      `;
+
+      tbody.innerHTML += `
+        <tr>
+          <td class="ps-3 fw-bold text-primary font-Lexend">${std.id}</td>
+          <td><span class="badge bg-light text-dark border rounded-pill-sm px-2">${std.room}</span></td>
+          <td><span class="badge bg-light text-dark border rounded-pill-sm px-2">${std.no}</span></td>
+          <td><strong class="font-Sarabun fs-6">${std.name}</strong></td>
+          <td><span class="badge ${statusClass} rounded-pill badge-modern shadow-sm">${std.status}</span></td>
+          <td class="text-center p-0">${actionBtns}</td>
+        </tr>
+      `;
+    });
+  }
+
+  // --- เปิดฟอร์มเพิ่มนักเรียน ---
+  function openAddModal() {
+    const role = currentUser ? currentUser.role : 'teacher';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+    const roomSelect = document.getElementById('std-room');
+    
+    document.getElementById('form-mode').value = 'add';
+    document.getElementById('studentModalLabel').innerText = 'เพิ่มรายชื่อนักเรียนใหม่';
+    document.getElementById('studentForm').reset();
+    document.getElementById('std-id').disabled = false;
+    document.getElementById('status-group').classList.add('hidden');
+    
+    // จัดการ Access Control ในฟอร์มเลือกห้องเรียน
+    if (role !== 'admin' && classAssigned) {
+      roomSelect.value = classAssigned; // บังคับเป็นห้องของครูคนนั้น
+      roomSelect.disabled = true;        // ห้ามครูกดสลับห้องเรียนเอง
+    } else {
+      roomSelect.disabled = false;
+    }
+    
+    new bootstrap.Modal(document.getElementById('studentModal')).show();
+  }
+
+  // --- เปิดฟอร์มแก้ไขนักเรียน ---
+  function openEditModal(id) {
+    const std = allStudents.find(s => s.id.toString() === id.toString());
+    if(!std) return;
+
+    const role = currentUser ? currentUser.role : 'teacher';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+    const roomSelect = document.getElementById('std-room');
+
+    document.getElementById('form-mode').value = 'edit';
+    document.getElementById('studentModalLabel').innerText = 'แก้ไขข้อมูลนักเรียน';
+    document.getElementById('std-id').value = std.id;
+    document.getElementById('std-id').disabled = true; // ล็อกไม่ให้แก้รหัสประจำตัว
+    document.getElementById('std-name').value = std.name;
+    document.getElementById('std-no').value = std.no;
+    document.getElementById('std-status').value = std.status;
+    document.getElementById('status-group').classList.remove('hidden');
+    
+    // ล็อกห้องเรียนตอนแก้ไขสำหรับครูประจำชั้น
+    roomSelect.value = std.room;
+    if (role !== 'admin' && classAssigned) {
+      roomSelect.disabled = true;
+    } else {
+      roomSelect.disabled = false;
+    }
+    
+    new bootstrap.Modal(document.getElementById('studentModal')).show();
+  }
+
+  function handleStudentSubmit(e) {
+    e.preventDefault();
+    const mode = document.getElementById('form-mode').value;
+    const btn = document.getElementById('btn-save-student');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> กำลังบันทึกข้อมูล...';
+    btn.disabled = true;
+
+    // ดึงค่าห้องเรียน (แม้จะโดน disabled อยู่)
+    const studentData = {
+      id: document.getElementById('std-id').value,
+      name: document.getElementById('std-name').value,
+      room: document.getElementById('std-room').value,
+      no: document.getElementById('std-no').value,
+      status: document.getElementById('std-status').value
+    };
+
+    if(mode === 'add') {
+      google.script.run.withSuccessHandler(() => { finishSubmit(); }).addStudent(studentData);
+    } else {
+      google.script.run.withSuccessHandler(() => { finishSubmit(); }).updateStudent(studentData);
+    }
+  }
+
+  function finishSubmit() {
+    bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
+    alert('บันทึกข้อมูลนักเรียนสำเร็จเรียบร้อย!');
+    loadStudentsView();
+  }
+
+  // --- ยืนยันการลบ ---
+  function confirmDelete(id, name) {
+    if(confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบนักเรียน: ${name} (รหัสประจำตัว: ${id}) ออกจากระบบ?`)) {
+      google.script.run.withSuccessHandler(() => {
+        alert('ลบข้อมูลเรียบร้อยแล้ว');
+        loadStudentsView();
+      }).deleteStudent(id);
+    }
+  }
+
+  // --- ประมวลผลนำเข้าไฟล์ CSV ---
+  function processCSV() {
+    const fileInput = document.getElementById('csvFileInput');
+    const file = fileInput.files[0];
+    if (!file) return alert("กรุณาเลือกไฟล์ .csv ก่อนครับ");
+
+    const role = currentUser ? currentUser.role : 'teacher';
+    const classAssigned = currentUser ? currentUser.class_assigned : '';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const text = e.target.result;
+      const lines = text.split("\n");
+      const students = [];
+      let deniedCount = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        if(!lines[i].trim()) continue;
+        const cols = lines[i].split(",");
+        if (cols.length >= 4) {
+          const importedRoom = cols[2].trim();
+          
+          // ระบบความปลอดภัย: ถ้าเป็นครูประจำชั้น และห้องในไฟล์ Excel ไม่ตรงกับห้องตัวเอง ให้ปฏิเสธการบันทึกบรรทัดนั้น
+          if (role !== 'admin' && importedRoom !== classAssigned) {
+            deniedCount++;
+            continue;
+          }
+
+          students.push({
+            id: cols[0].trim(),
+            name: cols[1].trim(),
+            room: importedRoom,
+            no: cols[2].trim() // ใช้คอลัมน์ลำดับที่ 4 ใน Excel
+          });
+        }
+      }
+
+      if (deniedCount > 0 && role !== 'admin') {
+        alert(`⚠️ มีรายชื่อนักเรียนจำนวน ${deniedCount} แถวที่ระบุห้องเรียนไม่ตรงกับห้องประจำชั้นของคุณ (ระบบปฏิเสธการนำเข้าเพื่อความปลอดภัย)`);
+      }
+
+      if(students.length > 0) {
+        if(confirm(`พบข้อมูลนักเรียนที่ถูกต้องตรงตามสิทธิ์ ${students.length} รายการ ต้องการยืนยันนำเข้าใช่หรือไม่?`)) {
+          google.script.run.withSuccessHandler(() => {
+            alert('นำเข้าข้อมูลสำเร็จเรียบร้อย!');
+            bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
+            fileInput.value = ''; // เคลียร์ไฟล์
+            loadStudentsView();
+          }).bulkImportStudents(students);
+        }
+      } else if(deniedCount === 0) {
+        alert('ไม่พบข้อมูลที่ตรงตามรูปแบบกรุณาตรวจสอบโครงสร้างไฟล์ .csv อีกครั้งครับ');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+</script>
