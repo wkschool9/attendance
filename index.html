@@ -5,26 +5,25 @@
 
     // ⚠️ ตรงนี้สำคัญมาก 1: ใส่ LIFF ID ของโรงเรียน
     const MY_LIFF_ID = "2010123063-r79O7fpX"; 
-
-    // ⚠️ ตรงนี้สำคัญมาก 2: เอา URL Web App ของ Google Apps Script ที่ Deploy ใหม่มาวางที่นี่
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwP2CcA2zhBsUgm1RRXJC702oSBrXC61Mu5OeWdMAGwdAhPBqEnDDTZS9wfLq18I6ltzg/exec";
-
+    
     // ==========================================
     // ฟังก์ชันตัวกลางสำหรับยิง API ไปหา GAS
     // ==========================================
-    async function callGasAPI(actionName, dataObj = {}) {
-  dataObj.action = actionName; 
+    // ⚠️ วางรหัส URL ตัวล่าสุดที่คุณครูเพิ่งทำ New Deployment จากขั้นตอนด้านบนครับ
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwP2CcA2zhBsUgm1RRXJC702oSBrXC61Mu5OeWdMAGwdAhPBqEnDDTZS9wfLq18I6ltzg/exec/exec";
+
+async function callGasAPI(actionName, dataObj = {}) {
   try {
-    const response = await fetch(GAS_API_URL, {
-      method: "POST",
-      headers: {
-        // ใช้ text/plain เสมอในการคุยกับ GAS ข้ามโดเมน เพื่อป้องกันเบราว์เซอร์สกัดกั้น
-        "Content-Type": "text/plain;charset=utf-8" 
-      },
-      body: JSON.stringify(dataObj)
+    // เปลี่ยนวิธียิงโดยเอาข้อมูลแปลงเป็นพารามิเตอร์ต่อท้ายลิงก์ URL ตรงๆ
+    const params = new URLSearchParams({ action: actionName, ...dataObj }).toString();
+    const finalUrl = `${GAS_API_URL}?${params}`;
+
+    const response = await fetch(finalUrl, {
+      method: "GET", // สลับมาใช้ช่องทาง GET เพื่อปลดล็อกกำแพงความปลอดภัยของ Google
+      mode: "cors"
     });
     
-    const resText = await response.text(); // อ่านเป็น Text ออกมาก่อนเพื่อป้องกัน JSON พัง
+    const resText = await response.text();
     const result = JSON.parse(resText);
     
     if (!result.success) {
@@ -33,7 +32,7 @@
     return result.data; 
   } catch (error) {
     console.error("API Connection Error:", error);
-    alert("❌ ไม่สามารถดึงข้อมูลจาก Google Sheets ได้: " + error.message);
+    alert("❌ ไม่สามารถเชื่อมต่อระบบได้: " + error.message);
     throw error;
   }
 }
